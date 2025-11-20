@@ -1,37 +1,39 @@
 import pygame
 
+class Bullet:
+    def __init__(self, x, y, width=8, height=8, speed=10):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.speed = speed
+
+    def update(self):
+        self.y -= self.speed  # player bullets move up
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, (255, 255, 0), (self.x, self.y, self.width, self.height))
+
 class BulletSystem:
     def __init__(self, bulletSpeed=10, shootCooldown=200):
-        # List to store active bullets
         self.bullets = []
-
-        # Shooting rate
         self.bulletSpeed = bulletSpeed
         self.shootCooldown = shootCooldown
-
-        # Time of last bullet fired
         self.lastShotTime = 0
 
     def shoot(self, playerX, playerY, playerSize):
         currentTime = pygame.time.get_ticks()
-
-        # Check cooldown
         if currentTime - self.lastShotTime >= self.shootCooldown:
-            bulletX = playerX + playerSize // 2 - 4   # center of player
+            bulletX = playerX + playerSize // 2 - 4
             bulletY = playerY
-
-            self.bullets.append([bulletX, bulletY])
+            self.bullets.append(Bullet(bulletX, bulletY, speed=self.bulletSpeed))
             self.lastShotTime = currentTime
 
     def updateBullets(self):
-        # Move bullets upward
         for bullet in self.bullets:
-            bullet[1] -= self.bulletSpeed
-
-        # Remove bullets that leave the screen
-        self.bullets = [b for b in self.bullets if b[1] > -10]
+            bullet.update()
+        self.bullets = [b for b in self.bullets if b.y > -10]
 
     def drawBullets(self, screen):
-        # Draw each bullet
         for bullet in self.bullets:
-            pygame.draw.rect(screen, (255, 255, 0), (bullet[0], bullet[1], 8, 8))
+            bullet.draw(screen)

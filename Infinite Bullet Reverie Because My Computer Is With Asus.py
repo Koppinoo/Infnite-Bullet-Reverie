@@ -24,8 +24,9 @@ playerInvulnerable = False  # optional, can add later for brief invulnerability 
 
 
 # --- Setup For Bullet System
-bulletSystem = BulletSystem()
 isShooting = False
+playerBullets = BulletSystem()  # bullets shot by the player
+enemyBullets = BulletSystem()  # bullets shot by enemies
 
 # --- Setup For Enemy System ---
 enemySystem = EnemySystem(screenWidth, screenHeight)
@@ -93,12 +94,14 @@ while running:
     from collision_system import check_collision
 
     # --- Check collisions between player and enemy bullets ---
-    for bullet in bulletSystem.bullets:  # bullet is [x, y]
+    for bullet in enemyBullets.bullets:
         if check_collision(playerX, playerY, playerSize, playerSize,
-                           bullet[0], bullet[1], 8, 8):  # bullet width and height are fixed at 8
+                           bullet.x, bullet.y, bullet.width, bullet.height):
             playerLives -= 1
             print(f"DEBUG: Player hit! Lives remaining: {playerLives}")
-            bulletSystem.bullets.remove(bullet)
+            enemyBullets.bullets.remove(bullet)
+
+
 
     # --- Check collisions between player and enemies ---
     for enemy in enemySystem.enemies:
@@ -118,13 +121,13 @@ while running:
 
     # --- Shooting logic ---
     if isShooting:
-        bulletSystem.shoot(playerX, playerY, playerSize)
+        playerBullets.shoot(playerX, playerY, playerSize)
 
-    bulletSystem.updateBullets()
+    playerBullets.updateBullets()
 
     # --- Draw everything ---
     screen.fill((0, 0, 0))
-    bulletSystem.drawBullets(screen)
+    playerBullets.drawBullets(screen)
     pygame.draw.rect(screen, (0, 255, 255), (playerX, playerY, playerSize, playerSize))
 
     # --- Debug text ---
