@@ -19,6 +19,9 @@ playerY = screenHeight // 2
 playerSpeed = 5
 slowSpeed = 2
 playerSize = 32  # for boundary checks
+playerLives = 3
+playerInvulnerable = False  # optional, can add later for brief invulnerability after hit
+
 
 # --- Setup For Bullet System
 bulletSystem = BulletSystem()
@@ -33,6 +36,7 @@ isSlow = False
 running = True
 
 # --- Main loop ---
+
 while running:
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -86,6 +90,28 @@ while running:
     playerX += moveX * currentSpeed
     playerY += moveY * currentSpeed
 
+    from collision_system import check_collision
+
+    # --- Check collisions between player and enemy bullets ---
+    for bullet in bulletSystem.bullets:  # bullet is [x, y]
+        if check_collision(playerX, playerY, playerSize, playerSize,
+                           bullet[0], bullet[1], 8, 8):  # bullet width and height are fixed at 8
+            playerLives -= 1
+            print(f"DEBUG: Player hit! Lives remaining: {playerLives}")
+            bulletSystem.bullets.remove(bullet)
+
+    # --- Check collisions between player and enemies ---
+    for enemy in enemySystem.enemies:
+        if check_collision(playerX, playerY, playerSize, playerSize, enemy.x, enemy.y, enemy.width, enemy.height):
+            playerLives = 0  # instant death for testing
+            print("DEBUG: Player collided with enemy!")
+
+    # --- Lives Left ---
+    if playerLives <= 0:
+        print("GAME OVER")  # debug print
+        running = False  # temporarily ends the game to indicate game over
+
+
     # --- Boundary checks ---
     playerX = max(0, min(screenWidth - playerSize, playerX))
     playerY = max(0, min(screenHeight - playerSize, playerY))
@@ -106,10 +132,18 @@ while running:
     debugText = font.render(f"Z Pressed: {isShooting}", True, (255, 255, 255))
     screen.blit(debugText, (10, 10))
 
+
+
     # --- Drawing Enemies ---
     enemySystem.spawnEnemy()  # spawns new enemies periodically
     enemySystem.updateEnemies()  # moves enemies
     enemySystem.drawEnemies(screen)  # draws enemies
+
+    # --- Drawing Lives
+    # Draw player lives on screen
+    font = pygame.font.SysFont(None, 30)
+    livesText = font.render(f"Lives: {playerLives}", True, (255, 255, 255))
+    screen.blit(livesText, (10, 40))
 
     pygame.display.flip()
     clock.tick(60)
