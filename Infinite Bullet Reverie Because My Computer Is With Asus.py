@@ -3,6 +3,7 @@ from pygame.locals import *
 
 pygame.init()
 from bullet_system import BulletSystem
+from enemy_system import EnemySystem
 
 # --- Window setup ---
 screenWidth = 800
@@ -22,6 +23,9 @@ playerSize = 32  # for boundary checks
 # --- Setup For Bullet System
 bulletSystem = BulletSystem()
 isShooting = False
+
+# --- Setup For Enemy System ---
+enemySystem = EnemySystem(screenWidth, screenHeight)
 
 # --- Input handler variables ---
 moveLeft = moveRight = moveUp = moveDown = False
@@ -101,6 +105,11 @@ while running:
     font = pygame.font.SysFont(None, 30)
     debugText = font.render(f"Z Pressed: {isShooting}", True, (255, 255, 255))
     screen.blit(debugText, (10, 10))
+
+    # --- Drawing Enemies ---
+    enemySystem.spawnEnemy()  # spawns new enemies periodically
+    enemySystem.updateEnemies()  # moves enemies
+    enemySystem.drawEnemies(screen)  # draws enemies
 
     pygame.display.flip()
     clock.tick(60)
