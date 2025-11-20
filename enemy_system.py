@@ -3,21 +3,21 @@ import random
 
 # --- Enemy class ---
 class Enemy:
-    def __init__(self, x, y, width=32, height=32, speed=2, color=(255, 0, 0)):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.speed = speed
-        self.color = color
-        self.alive = True
+        def __init__(self, x, y, width=32, height=32, speed=2, health=1):
+            self.x = x
+            self.y = y
+            self.width = width
+            self.height = height
+            self.speed = speed
+            self.health = health
 
-    def update(self):
-        # Moves enemy downward each frame
-        self.y += self.speed
+        def update(self):
+            self.y += self.speed  # moves downward
+            # you can add horizontal movement or patterns later
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
+        def draw(self, screen):
+            pygame.draw.rect(screen, (255, 0, 0), (self.x, self.y, self.width, self.height))
+
 
 # --- Enemy system ---
 class EnemySystem:
@@ -37,6 +37,7 @@ class EnemySystem:
             enemy = Enemy(x, y)
             self.enemies.append(enemy)
             self.lastSpawnTime = currentTime
+
 
     def updateEnemies(self):
         for enemy in self.enemies:

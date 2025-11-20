@@ -142,11 +142,27 @@ while running:
     enemySystem.updateEnemies()  # moves enemies
     enemySystem.drawEnemies(screen)  # draws enemies
 
-    # --- Drawing Lives
-    # Draw player lives on screen
+    # --- Drawing Lives ---
     font = pygame.font.SysFont(None, 30)
     livesText = font.render(f"Lives: {playerLives}", True, (255, 255, 255))
     screen.blit(livesText, (10, 40))
+
+    # --- Update Enemies ---
+    enemySystem.updateEnemies()
+
+    # --- Drawing  Enemies ---
+    enemySystem.drawEnemies(screen)
+
+    # Check collisions: player bullets vs enemies
+    for bullet in playerBullets.bullets[:]:  # copy to avoid iteration issues
+        for enemy in enemySystem.enemies[:]:
+            if check_collision(bullet.x, bullet.y, bullet.width, bullet.height,
+                               enemy.x, enemy.y, enemy.width, enemy.height):
+                enemy.health -= 1
+                if enemy.health <= 0:
+                    enemySystem.enemies.remove(enemy)
+                playerBullets.bullets.remove(bullet)
+                break  # bullet can only hit one enemy
 
     pygame.display.flip()
     clock.tick(60)
