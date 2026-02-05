@@ -1,8 +1,4 @@
 # main.py
-# Clean integrated main loop for Infinite Bullet Reverie
-# Uses modular systems: bullet_system, enemy_system, menu_system, collision_system
-# Author: (you) — personalised comments kept throughout for coursework clarity
-
 import pygame
 import sys
 from pygame.locals import *
@@ -22,8 +18,8 @@ clock = pygame.time.Clock()
 
 # --- Systems ---
 menu = MenuSystem()
-playerBullets = BulletSystem(bulletSpeed=10, shootCooldown=150)   # player's bullets
-enemyBullets = BulletSystem(bulletSpeed=6, shootCooldown=500)     # can be used for enemy fire later
+playerBullets = BulletSystem(bulletSpeed=10, shootCooldown=150, screenWidth=WIDTH, screenHeight=HEIGHT)
+enemyBullets  = BulletSystem(bulletSpeed=6,  shootCooldown=500, screenWidth=WIDTH, screenHeight=HEIGHT)
 enemySystem = EnemySystem(WIDTH, HEIGHT)
 
 # --- Player state (resettable) ---
@@ -142,9 +138,13 @@ while running:
 
     # Enemy spawn/update/draw calls
     enemySystem.spawnEnemy()
-    enemySystem.updateEnemies()
+    enemySystem.updateEnemies(
+        enemyBullets,
+        player["x"],
+        player["y"],
+        player["size"],
+    )
 
-    # Update enemy bullets (if you use enemyBullets later)
     enemyBullets.updateBullets()
 
     # --- COLLISIONS ---
@@ -235,3 +235,6 @@ while running:
 # Clean exit
 pygame.quit()
 sys.exit()
+
+if player_collides_with_enemy or player_collides_with_bullet:
+    playerLives -= 1

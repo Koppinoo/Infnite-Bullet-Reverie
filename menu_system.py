@@ -2,7 +2,10 @@ import pygame
 
 class MenuSystem:
     def __init__(self):
-        self.state = "menu"  # can be: menu, controls, game
+        self.state = "menu"
+        # Stores the current state of the game.
+        # This controls which screen is displayed (menu, controls, gameplay, or game over)
+        # and prevents gameplay logic from running while the player is in a menu.
 
         # default controls
         self.controls = {
@@ -13,6 +16,9 @@ class MenuSystem:
             "down": pygame.K_DOWN,
             "slow": pygame.K_LSHIFT
         }
+        # Stores the key bindings for each gameplay action.
+        # Using a dictionary allows controls to be easily updated and rebound
+        # without changing the core gameplay logic.
 
         # For rebinding
         self.rebinding = None  # holds which action is being rebound
@@ -83,3 +89,5 @@ class MenuSystem:
                     self.rebinding = actions[idx + 1]
                 else:
                     self.rebinding = None
+
+

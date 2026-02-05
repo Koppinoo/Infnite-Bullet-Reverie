@@ -9,3 +9,4 @@ def check_collision(obj1_x, obj1_y, obj1_w, obj1_h, obj2_x, obj2_y, obj2_w, obj2
         obj1_y < obj2_y + obj2_h and
         obj1_y + obj1_h > obj2_y
     )
+
