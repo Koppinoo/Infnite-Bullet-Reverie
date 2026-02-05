@@ -22,6 +22,10 @@ playerBullets = BulletSystem(bulletSpeed=10, shootCooldown=150, screenWidth=WIDT
 enemyBullets  = BulletSystem(bulletSpeed=6,  shootCooldown=500, screenWidth=WIDTH, screenHeight=HEIGHT)
 enemySystem = EnemySystem(WIDTH, HEIGHT)
 
+# --- Player hitbox ---
+HITBOX_RADIUS = 4  # Small visual hitbox for precision dodging
+
+
 # --- Player state (resettable) ---
 def reset_player_state():
     return {
@@ -211,6 +215,28 @@ while running:
     # Player draw - flash while invulnerable
     player_color = (0, 255, 255) if not player["invulnerable"] or (pygame.time.get_ticks() % 300 < 150) else (100, 100, 100)
     pygame.draw.rect(screen, player_color, (player["x"], player["y"], player["size"], player["size"]))
+
+
+
+    # Draw visible hitbox only when in focus mode (Touhou-style)
+    if is_focus:
+        hitbox_x = player["x"] + player["size"] // 2
+        hitbox_y = player["y"] + player["size"] // 2
+
+        pygame.draw.circle(
+            screen,
+            (255, 255, 255),  # white for high contrast
+            (hitbox_x, hitbox_y),
+            HITBOX_RADIUS,
+            1  # outline only
+        )
+
+    # I draw a small visual hitbox when the player is in focus mode.
+    # This represents the true collision area of the player and is intentionally
+    # smaller than the player sprite to allow precise dodging.
+    # The hitbox is only visible in focus mode to reduce screen clutter,
+
+
 
     # HUD
     score_text = ui_font.render(f"Lives: {player['lives']}", True, (255, 255, 255))

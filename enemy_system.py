@@ -189,5 +189,5 @@ class EnemySystem:
         for enemy in self.enemies:
             enemy.draw(screen)
 
-            if enemy.hp <= 0:
+            if enemy.health <= 0:
                 enemy.alive = False
