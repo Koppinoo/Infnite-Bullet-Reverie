@@ -7,7 +7,8 @@ from pygame.locals import *
 from bullet_system import BulletSystem
 from enemy_system import EnemySystem
 from menu_system import MenuSystem
-from collision_system import check_collision
+from collision_system import circle_rect_collision, HITBOX_RADIUS, check_collision
+
 
 # --- Pygame init ---
 pygame.init()
@@ -22,8 +23,6 @@ playerBullets = BulletSystem(bulletSpeed=10, shootCooldown=150, screenWidth=WIDT
 enemyBullets  = BulletSystem(bulletSpeed=6,  shootCooldown=500, screenWidth=WIDTH, screenHeight=HEIGHT)
 enemySystem = EnemySystem(WIDTH, HEIGHT)
 
-# --- Player hitbox ---
-HITBOX_RADIUS = 4  # Small visual hitbox for precision dodging
 
 
 # --- Player state (resettable) ---
@@ -149,14 +148,28 @@ while running:
         player["size"],
     )
 
+
     enemyBullets.updateBullets()
 
     # --- COLLISIONS ---
 
     # 1) Enemy bullets hitting player
     for eb in enemyBullets.bullets[:]:
-        if check_collision(player["x"], player["y"], player["size"], player["size"],
-                           eb.x, eb.y, eb.width, eb.height):
+        # Calculate player hitbox centre
+        hitbox_x = player["x"] + player["size"] // 2
+        hitbox_y = player["y"] + player["size"] // 2
+
+        # Use circular hitbox collision,
+        if circle_rect_collision(
+                hitbox_x,
+                hitbox_y,
+                HITBOX_RADIUS,
+                eb.x,
+                eb.y,
+                eb.width,
+                eb.height
+        ):
+
             # only apply if not invulnerable
             if not player["invulnerable"]:
                 player["lives"] -= 1
@@ -167,6 +180,7 @@ while running:
                     enemyBullets.bullets.remove(eb)
                 except ValueError:
                     pass
+                print("HIT BY ENEMY BULLET")
 
     # invulnerability timeout (300ms)
     if player["invulnerable"]:
@@ -185,19 +199,31 @@ while running:
                     playerBullets.bullets.remove(pb)
                 except ValueError:
                     pass
-                # if enemy died, remove it
-                if enemy.health <= 0:
-                    try:
-                        enemySystem.enemies.remove(enemy)
-                    except ValueError:
-                        pass
+                if enemy.health <= 0 and not enemy.dying:
+                    enemy.dying = True
+                    enemy.death_start_time = pygame.time.get_ticks()
+
                 break  # bullet can only hit one enemy
 
     # 3) Enemy colliding with player (instant death for testing)
     for enemy in enemySystem.enemies[:]:
-        if check_collision(player["x"], player["y"], player["size"], player["size"],
-                           enemy.x, enemy.y, enemy.width, enemy.height):
+        # Calculate player hitbox centre
+        hitbox_x = player["x"] + player["size"] // 2
+        hitbox_y = player["y"] + player["size"] // 2
+
+        # Use circular hitbox collision for enemy body
+        if circle_rect_collision(
+                hitbox_x,
+                hitbox_y,
+                HITBOX_RADIUS,
+                enemy.x,
+                enemy.y,
+                enemy.width,
+                enemy.height
+
+        ):
             player["lives"] = 0
+            print("HIT BY ENEMY BODY ")
             break
 
     # Check game over
@@ -262,5 +288,3 @@ while running:
 pygame.quit()
 sys.exit()
 
-if player_collides_with_enemy or player_collides_with_bullet:
-    playerLives -= 1

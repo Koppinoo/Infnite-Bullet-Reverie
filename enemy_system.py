@@ -1,7 +1,7 @@
 import pygame
 import random
 import math
-
+    
 from bullet_system import BulletSystem  # only for type hints / clarity
 
 
@@ -36,45 +36,26 @@ class Enemy:
         self.spawn_time = pygame.time.get_ticks()
         self.base_x = x
 
-        # pattern parameters for variety
-        self.direction = random.choice([-1, 1])          # diagonal / zigzag
-        self.amplitude = random.randint(30, 80)          # sine / zigzag
-        self.frequency = random.uniform(1.0, 2.5)        # sine / zigzag
-
         # shooting
         self.bullet_pattern = bullet_pattern
         self.shoot_cooldown = random.randint(800, 1600)  # ms
         self.last_shot_time = pygame.time.get_ticks()
 
+        # enemy death feedback
+
+        self.dying = False
+        self.death_start_time = 0
+        self.death_duration = 300  # milliseconds
+
     # ---------- MOVEMENT ----------
 
     def update_position(self):
-        t = (pygame.time.get_ticks() - self.spawn_time) / 1000.0
-
-        if self.movement_pattern == "straight":
-            self.y += self.speed
-
-        elif self.movement_pattern == "diagonal":
-            self.y += self.speed
-            self.x += self.direction * self.speed * 0.6
-
-        elif self.movement_pattern == "sine":
-            self.y += self.speed
-            self.x = self.base_x + math.sin(t * self.frequency * 2 * math.pi) * self.amplitude
-
-        elif self.movement_pattern == "zigzag":
-            self.y += self.speed
-            zig = math.sin(t * self.frequency * 2 * math.pi)
-            self.x = self.base_x + math.copysign(self.amplitude, zig)
-            # clamp inside screen
-            if self.x < 0:
-                self.x = 0
-            if self.x + self.width > self.screen_width:
-                self.x = self.screen_width - self.width
-
-        else:
-            # fallback
-            self.y += self.speed
+        """
+     predictable downward movement.
+        This improves readability and ensures enemy behaviour
+        is consistent and easy to understand.
+        """
+        self.y += self.speed
 
     # ---------- SHOOTING ----------
 
@@ -124,11 +105,35 @@ class Enemy:
     # ---------- DRAW ----------
 
     def draw(self, screen):
-        pygame.draw.rect(
-            screen,
-            (255, 0, 0),
-            pygame.Rect(int(self.x), int(self.y), self.width, self.height),
-        )
+        if self.dying:
+            elapsed = pygame.time.get_ticks() - self.death_start_time
+            progress = min(elapsed / self.death_duration, 1)
+
+            max_radius = self.width
+            radius = int(max_radius * progress)
+
+            # Semi-transparent blue expanding circle
+            surface = pygame.Surface((max_radius * 2, max_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(
+                surface,
+                (80, 160, 255, 120),  # RGBA blue
+                (max_radius, max_radius),
+                radius
+            )
+
+            screen.blit(
+                surface,
+                (
+                    self.x + self.width // 2 - max_radius,
+                    self.y + self.height // 2 - max_radius
+                )
+            )
+        else:
+            pygame.draw.rect(
+                screen,
+                (255, 0, 0),
+                pygame.Rect(int(self.x), int(self.y), self.width, self.height)
+            )
 
 
 class EnemySystem:
@@ -188,6 +193,3 @@ class EnemySystem:
     def drawEnemies(self, screen):
         for enemy in self.enemies:
             enemy.draw(screen)
-
-            if enemy.health <= 0:
-                enemy.alive = False
