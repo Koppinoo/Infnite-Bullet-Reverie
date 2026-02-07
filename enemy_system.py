@@ -1,8 +1,10 @@
 import pygame
 import random
 import math
+from WaveSystem import WaveSystem
+
     
-from bullet_system import BulletSystem  # only for type hints / clarity
+from bullet_system import BulletSystem
 
 
 class Enemy:
@@ -29,11 +31,26 @@ class Enemy:
         self.movement_pattern = movement_pattern
         self.screen_width = screen_width
 
+        # movement scripting
+        self.spawnTime = pygame.time.get_ticks()
+
+        # Movement scripting
+        self.pattern = "enter_strafe_exit"  # default
+        self.targetY = y + 120  # where enemy stops descending
+        self.phase = 0  # 0=enter, 1=strafe, 2=exit
+        self.phaseStart = self.spawnTime
+
+        self.strafeDir = 1  # 1 right, -1 left
+        self.strafeSpeed = 2.0
+        self.enterSpeed = self.speed
+        self.exitSpeed = self.speed + 1.0
+
+        self.strafeDuration = 1500  # ms
+
         # enemy health
         self.health = health
 
         # store when spawned for pattern timing
-        self.spawn_time = pygame.time.get_ticks()
         self.base_x = x
 
         # shooting
@@ -48,14 +65,33 @@ class Enemy:
         self.death_duration = 300  # milliseconds
 
     # ---------- MOVEMENT ----------
-
     def update_position(self):
-        """
-     predictable downward movement.
-        This improves readability and ensures enemy behaviour
-        is consistent and easy to understand.
-        """
-        self.y += self.speed
+        now = pygame.time.get_ticks()
+
+        # Phase 0: Enter from top
+        if self.phase == 0:
+            self.y += self.enterSpeed
+            if self.y >= self.targetY:
+                self.y = self.targetY
+                self.phase = 1
+                self.phaseStart = now
+
+        # Phase 1: Horizontal movement (scripted)
+        elif self.phase == 1:
+            self.x += self.strafeDir * self.strafeSpeed
+
+            if self.x <= 0 or self.x + self.width >= self.screen_width:
+                self.strafeDir *= -1
+
+            if now - self.phaseStart >= self.strafeDuration:
+                self.phase = 2
+                self.phaseStart = now
+
+        # Phase 2: Exit upward (Touhou-style clear)
+        elif self.phase == 2:
+            self.y -= self.exitSpeed
+            if self.y + self.height < 0:
+                self.alive = False
 
     # ---------- SHOOTING ----------
 
@@ -139,26 +175,30 @@ class Enemy:
 class EnemySystem:
     def __init__(self, screenWidth, screenHeight):
         self.enemies = []
+        self.enemySpeed = 2.0  # base speed for enemies
         self.screenWidth = screenWidth
         self.screenHeight = screenHeight
         self.spawnCooldown = 1000  # ms between spawns
         self.lastSpawnTime = pygame.time.get_ticks()
 
+
         # Patterns to randomly choose from
-        self.movement_patterns = ["straight", "diagonal", "sine", "zigzag"]
+
         self.bullet_patterns = ["aimed", "radial", "spread", "spiral"]
 
-    def spawnEnemy(self, movement_pattern=None, bullet_pattern=None):
-        """Spawn a single enemy at top of screen with optional patterns."""
-        currentTime = pygame.time.get_ticks()
-        if currentTime - self.lastSpawnTime <= self.spawnCooldown:
-            return
+    def spawnEnemy(
+            self,
+            bullet_pattern=None,
+            targetY=120,
+            strafeSpeed=2.0,
+            strafeDuration=1500,
+
+
+    ):
 
         x = random.randint(0, self.screenWidth - 32)
         y = -32
 
-        if movement_pattern is None:
-            movement_pattern = random.choice(self.movement_patterns)
         if bullet_pattern is None:
             bullet_pattern = random.choice(self.bullet_patterns)
 
@@ -169,12 +209,11 @@ class EnemySystem:
             height=32,
             speed=2,
             health=1,
-            movement_pattern=movement_pattern,
             bullet_pattern=bullet_pattern,
             screen_width=self.screenWidth,
         )
         self.enemies.append(enemy)
-        self.lastSpawnTime = currentTime
+        self.lastSpawnTime =  pygame.time.get_ticks()
 
     def updateEnemies(self, bullet_system: "BulletSystem" = None,
                       player_x=None, player_y=None, player_size=32):

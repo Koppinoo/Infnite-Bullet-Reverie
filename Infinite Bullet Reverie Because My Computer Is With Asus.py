@@ -8,6 +8,10 @@ from bullet_system import BulletSystem
 from enemy_system import EnemySystem
 from menu_system import MenuSystem
 from collision_system import circle_rect_collision, HITBOX_RADIUS, check_collision
+from WaveSystem import WaveSystem
+
+waveSystem = WaveSystem()
+
 
 
 # --- Pygame init ---
@@ -23,7 +27,13 @@ playerBullets = BulletSystem(bulletSpeed=10, shootCooldown=150, screenWidth=WIDT
 enemyBullets  = BulletSystem(bulletSpeed=6,  shootCooldown=500, screenWidth=WIDTH, screenHeight=HEIGHT)
 enemySystem = EnemySystem(WIDTH, HEIGHT)
 
+# --- Player hitbox ---
+HITBOX_RADIUS = 4  # Small visual hitbox for precision dodging
 
+
+
+# --- Paused State ---
+gamePaused = False
 
 # --- Player state (resettable) ---
 def reset_player_state():
@@ -80,10 +90,11 @@ while running:
 
         # If playing, allow menu to receive some inputs (toggle)
         if menu.state == "game":
-            # Allow escape to go back to menu
-            if event.type == KEYDOWN and event.key == pygame.K_ESCAPE:
-                menu.state = "menu"
-                continue
+
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    gamePaused = not gamePaused
 
     # If menu is active, draw menu and skip game update
     if menu.state == "menu":
@@ -103,144 +114,149 @@ while running:
     controls = menu.controls
     keys = pygame.key.get_pressed()
 
-    # Movement input (continuous)
-    move_left = keys[controls["left"]]
-    move_right = keys[controls["right"]]
-    move_up = keys[controls["up"]]
-    move_down = keys[controls["down"]]
-    is_focus = keys[controls["slow"]]
-    is_shooting = keys[controls["shoot"]]
+    if not gamePaused:
 
-    # Movement logic with diagonal normalisation
-    speed = player["focusSpeed"] if is_focus else player["normalSpeed"]
-    moveX = 0
-    moveY = 0
-    if move_left:
-        moveX -= 1
-    if move_right:
-        moveX += 1
-    if move_up:
-        moveY -= 1
-    if move_down:
-        moveY += 1
-    if moveX != 0 and moveY != 0:
-        # normalize so diagonal speed equals straight speed
-        moveX *= 0.7071
-        moveY *= 0.7071
-    player["x"] += moveX * speed
-    player["y"] += moveY * speed
+        waveSystem.update(enemySystem, gamePaused)
 
-    # Boundary clamp
-    player["x"] = max(0, min(WIDTH - player["size"], player["x"]))
-    player["y"] = max(0, min(HEIGHT - player["size"], player["y"]))
+        # Movement input (continuous)
+        move_left = keys[controls["left"]]
+        move_right = keys[controls["right"]]
+        move_up = keys[controls["up"]]
+        move_down = keys[controls["down"]]
+        is_focus = keys[controls["slow"]]
+        is_shooting = keys[controls["shoot"]]
 
-    # Shooting (player)
-    if is_shooting:
-        playerBullets.shoot(player["x"], player["y"], player["size"])
-    playerBullets.updateBullets()
+        # Movement logic with diagonal normalisation
+        speed = player["focusSpeed"] if is_focus else player["normalSpeed"]
+        moveX = 0
+        moveY = 0
+        if move_left:
+            moveX -= 1
+        if move_right:
+            moveX += 1
+        if move_up:
+            moveY -= 1
+        if move_down:
+            moveY += 1
+        if moveX != 0 and moveY != 0:
+            # normalize so diagonal speed equals straight speed
+            moveX *= 0.7071
+            moveY *= 0.7071
+        player["x"] += moveX * speed
+        player["y"] += moveY * speed
 
-    # Enemy spawn/update/draw calls
-    enemySystem.spawnEnemy()
-    enemySystem.updateEnemies(
-        enemyBullets,
-        player["x"],
-        player["y"],
-        player["size"],
-    )
+        # Boundary clamp
+        player["x"] = max(0, min(WIDTH - player["size"], player["x"]))
+        player["y"] = max(0, min(HEIGHT - player["size"], player["y"]))
+
+        # Shooting (player)
+        if is_shooting:
+            playerBullets.shoot(player["x"], player["y"], player["size"])
+        playerBullets.updateBullets()
+
+        # Enemy spawn/update/draw calls
+        enemySystem.updateEnemies(
+            enemyBullets,
+            player["x"],
+            player["y"],
+            player["size"],
+        )
 
 
-    enemyBullets.updateBullets()
+        enemyBullets.updateBullets()
 
-    # --- COLLISIONS ---
+        # --- COLLISIONS ---
 
-    # 1) Enemy bullets hitting player
-    for eb in enemyBullets.bullets[:]:
-        # Calculate player hitbox centre
-        hitbox_x = player["x"] + player["size"] // 2
-        hitbox_y = player["y"] + player["size"] // 2
+        # 1) Enemy bullets hitting player
+        for eb in enemyBullets.bullets[:]:
+            # Calculate player hitbox centre
+            hitbox_x = player["x"] + player["size"] // 2
+            hitbox_y = player["y"] + player["size"] // 2
 
-        # Use circular hitbox collision,
-        if circle_rect_collision(
-                hitbox_x,
-                hitbox_y,
-                HITBOX_RADIUS,
-                eb.x,
-                eb.y,
-                eb.width,
-                eb.height
-        ):
+            # Use circular hitbox collision,
+            if circle_rect_collision(
+                    hitbox_x,
+                    hitbox_y,
+                    HITBOX_RADIUS,
+                    eb.x,
+                    eb.y,
+                    eb.width,
+                    eb.height
+            ):
 
-            # only apply if not invulnerable
-            if not player["invulnerable"]:
-                player["lives"] -= 1
-                player["invulnerable"] = True
-                player["invulnTimer"] = pygame.time.get_ticks()
-                # remove bullet that hit
-                try:
-                    enemyBullets.bullets.remove(eb)
-                except ValueError:
-                    pass
-                print("HIT BY ENEMY BULLET")
+                # only apply if not invulnerable
+                if not player["invulnerable"]:
+                    player["lives"] -= 1
+                    player["invulnerable"] = True
+                    player["invulnTimer"] = pygame.time.get_ticks()
+                    # remove bullet that hit
+                    try:
+                        enemyBullets.bullets.remove(eb)
+                    except ValueError:
+                        pass
+                    print("HIT BY ENEMY BULLET")
 
-    # invulnerability timeout (300ms)
-    if player["invulnerable"]:
-        if pygame.time.get_ticks() - player["invulnTimer"] > 300:
-            player["invulnerable"] = False
+        # invulnerability timeout (300ms)
+        if player["invulnerable"]:
+            if pygame.time.get_ticks() - player["invulnTimer"] > 300:
+                player["invulnerable"] = False
 
-    # 2) Player bullets hitting enemies
-    # iterate copies to allow removal during loops
-    for pb in playerBullets.bullets[:]:
+        # 2) Player bullets hitting enemies
+        # iterate copies to allow removal during loops
+        for pb in playerBullets.bullets[:]:
+            for enemy in enemySystem.enemies[:]:
+                if check_collision(pb.x, pb.y, pb.width, pb.height,
+                                   enemy.x, enemy.y, enemy.width, enemy.height):
+                    enemy.health -= 1
+                    # remove the bullet that hit
+                    try:
+                        playerBullets.bullets.remove(pb)
+                    except ValueError:
+                        pass
+                    # if enemy died, remove it
+                    if enemy.health <= 0:
+                        try:
+                            enemySystem.enemies.remove(enemy)
+                        except ValueError:
+                            pass
+                    break  # bullet can only hit one enemy
+
+        # 3) Enemy colliding with player (instant death for testing)
         for enemy in enemySystem.enemies[:]:
-            if check_collision(pb.x, pb.y, pb.width, pb.height,
-                               enemy.x, enemy.y, enemy.width, enemy.height):
-                enemy.health -= 1
-                # remove the bullet that hit
-                try:
-                    playerBullets.bullets.remove(pb)
-                except ValueError:
-                    pass
-                if enemy.health <= 0 and not enemy.dying:
-                    enemy.dying = True
-                    enemy.death_start_time = pygame.time.get_ticks()
+            # Calculate player hitbox centre
+            hitbox_x = player["x"] + player["size"] // 2
+            hitbox_y = player["y"] + player["size"] // 2
 
-                break  # bullet can only hit one enemy
+            # Use circular hitbox collision for enemy body
+            if circle_rect_collision(
+                    hitbox_x,
+                    hitbox_y,
+                    HITBOX_RADIUS,
+                    enemy.x,
+                    enemy.y,
+                    enemy.width,
+                    enemy.height
 
-    # 3) Enemy colliding with player (instant death for testing)
-    for enemy in enemySystem.enemies[:]:
-        # Calculate player hitbox centre
-        hitbox_x = player["x"] + player["size"] // 2
-        hitbox_y = player["y"] + player["size"] // 2
+            ):
+                player["lives"] = 0
+                print("HIT BY ENEMY BODY ")
+                break
 
-        # Use circular hitbox collision for enemy body
-        if circle_rect_collision(
-                hitbox_x,
-                hitbox_y,
-                HITBOX_RADIUS,
-                enemy.x,
-                enemy.y,
-                enemy.width,
-                enemy.height
+        # Check game over
+        if player["lives"] <= 0:
+            menu.state = "gameover"
 
-        ):
-            player["lives"] = 0
-            print("HIT BY ENEMY BODY ")
-            break
+        # --- DRAW ---
+        screen.fill((10, 10, 30))  # dark background
 
-    # Check game over
-    if player["lives"] <= 0:
-        menu.state = "gameover"
+        # Draw bullets and enemies then player (simple layering)
+        playerBullets.drawBullets(screen)
+        enemySystem.drawEnemies(screen)
+        enemyBullets.drawBullets(screen)
 
-    # --- DRAW ---
-    screen.fill((10, 10, 30))  # dark background
-
-    # Draw bullets and enemies then player (simple layering)
-    playerBullets.drawBullets(screen)
-    enemySystem.drawEnemies(screen)
-    enemyBullets.drawBullets(screen)
-
-    # Player draw - flash while invulnerable
-    player_color = (0, 255, 255) if not player["invulnerable"] or (pygame.time.get_ticks() % 300 < 150) else (100, 100, 100)
-    pygame.draw.rect(screen, player_color, (player["x"], player["y"], player["size"], player["size"]))
+        # Player draw - flash while invulnerable
+        player_color = (0, 255, 255) if not player["invulnerable"] or (pygame.time.get_ticks() % 300 < 150) else (100, 100, 100)
+        pygame.draw.rect(screen, player_color, (player["x"], player["y"], player["size"], player["size"]))
 
 
 
@@ -270,6 +286,11 @@ while running:
     ztext = ui_font.render(f"Shoot: {pygame.key.name(controls['shoot'])}", True, (200, 200, 200))
     screen.blit(ztext, (10, 40))
 
+
+    # I implemented a pause system that freezes all gameplay updates when activated.
+    # This prevents unfair deaths, allows players to take breaks, and improves accessibility.
+    # This directly supports Success Criterion 13.
+
     # If gameover show overlay
     if menu.state == "gameover":
         overlay = pygame.Surface((WIDTH, HEIGHT))
@@ -281,10 +302,21 @@ while running:
         screen.blit(go_text, (WIDTH//2 - go_text.get_width()//2, HEIGHT//2 - 50))
         screen.blit(info, (WIDTH//2 - info.get_width()//2, HEIGHT//2 + 20))
 
+    if gamePaused:
+        pause_font = pygame.font.Font(None, 72)
+        pause_text = pause_font.render("PAUSED", True, (255, 255, 255))
+        screen.blit(
+            pause_text,
+            (
+                screen.get_width() // 2 - pause_text.get_width() // 2,
+                screen.get_height() // 2 - pause_text.get_height() // 2
+            )
+        )
+
     pygame.display.flip()
     clock.tick(60)
+
 
 # Clean exit
 pygame.quit()
 sys.exit()
-
