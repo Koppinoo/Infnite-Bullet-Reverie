@@ -6,6 +6,24 @@ from WaveSystem import WaveSystem
     
 from bullet_system import BulletSystem
 
+ENEMY_PROFILES = {
+    "BlueFairy": {
+        "hp": 1,
+        "strafeSpeed": 2.0,
+        "strafeDuration": 1200,
+    },
+    "PinkFairy": {
+        "hp": 4,
+        "strafeSpeed": 1.6,
+        "strafeDuration": 2000,
+    },
+    "PinkFairyGood": {
+        "hp": 8,
+        "strafeSpeed": 1.4,
+        "strafeDuration": 2600,
+    }
+}
+
 
 class Enemy:
     def __init__(
@@ -188,19 +206,15 @@ class EnemySystem:
 
     def spawnEnemy(
             self,
-            bullet_pattern=None,
-            targetY=120,
-            strafeSpeed=2.0,
-            strafeDuration=1500,
-
-
+            enemy_type="BlueFairy",
+            targetY=120
     ):
 
         x = random.randint(0, self.screenWidth - 32)
         y = -32
 
-        if bullet_pattern is None:
-            bullet_pattern = random.choice(self.bullet_patterns)
+
+
 
         enemy = Enemy(
             x,
@@ -209,11 +223,22 @@ class EnemySystem:
             height=32,
             speed=2,
             health=1,
-            bullet_pattern=bullet_pattern,
             screen_width=self.screenWidth,
         )
         self.enemies.append(enemy)
         self.lastSpawnTime =  pygame.time.get_ticks()
+
+        # ENEMY PROFILELOGIC
+
+        profile = ENEMY_PROFILES[enemy_type]
+
+
+        enemy.health = profile["hp"]
+        enemy.strafeSpeed = profile["strafeSpeed"]
+        enemy.strafeDuration = profile["strafeDuration"]
+        enemy.targetY = targetY
+
+
 
     def updateEnemies(self, bullet_system: "BulletSystem" = None,
                       player_x=None, player_y=None, player_size=32):

@@ -16,7 +16,7 @@ waveSystem = WaveSystem()
 
 # --- Pygame init ---
 pygame.init()
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 800, 900
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Infinite Bullet Reverie")
 clock = pygame.time.Clock()
