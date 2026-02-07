@@ -1,259 +1,200 @@
+
 import pygame
 import random
 import math
-from WaveSystem import WaveSystem
-
-    
 from bullet_system import BulletSystem
 
-ENEMY_PROFILES = {
-    "BlueFairy": {
-        "hp": 1,
-        "strafeSpeed": 2.0,
-        "strafeDuration": 1200,
-    },
-    "PinkFairy": {
-        "hp": 4,
-        "strafeSpeed": 1.6,
-        "strafeDuration": 2000,
-    },
-    "PinkFairyGood": {
-        "hp": 8,
-        "strafeSpeed": 1.4,
-        "strafeDuration": 2600,
-    }
-}
-
+# ----------------------------
+# Touhou-inspired enemy types
+# ----------------------------
 
 class Enemy:
-    def __init__(
-        self,
-        x,
-        y,
-        width=32,
-        height=32,
-        speed=2,
-        health=1,
-        movement_pattern="straight",
-        bullet_pattern="aimed",
-        screen_width=800,
-    ):
-        # position / size
+    """
+    Base enemy class (Touhou-style):
+    - position (x, y)
+    - direction vector (dx, dy)
+    - velocity (speed scalar)
+    - hp (health)
+    - elapsed_frames (for scripted behaviour)
+    """
+    def __init__(self, x, y, direction=(0, 1), velocity=1.0, hp=1, width=32, height=32, screen_width=800):
         self.x = float(x)
         self.y = float(y)
         self.width = width
         self.height = height
 
-        # movement
-        self.speed = speed
-        self.movement_pattern = movement_pattern
+        self.direction = pygame.Vector2(direction)
+        if self.direction.length_squared() == 0:
+            self.direction = pygame.Vector2(0, 1)
+        # normalise so velocity is consistent
+        self.direction = self.direction.normalize()
+
+        self.velocity = float(velocity)
+        self.health = int(hp)   # keep 'health' for your main collision code
+        self.hp = int(hp)       # also store 'hp' for Touhou terminology
+
+        self.elapsed_frames = 0
+        self.alive = True
         self.screen_width = screen_width
 
-        # movement scripting
-        self.spawnTime = pygame.time.get_ticks()
+    def got_hit(self, damage=1):
+        self.health -= damage
+        self.hp = self.health
+        if self.health <= 0:
+            self.alive = False
 
-        # Movement scripting
-        self.pattern = "enter_strafe_exit"  # default
-        self.targetY = y + 120  # where enemy stops descending
-        self.phase = 0  # 0=enter, 1=strafe, 2=exit
-        self.phaseStart = self.spawnTime
-
-        self.strafeDir = 1  # 1 right, -1 left
-        self.strafeSpeed = 2.0
-        self.enterSpeed = self.speed
-        self.exitSpeed = self.speed + 1.0
-
-        self.strafeDuration = 1500  # ms
-
-        # enemy health
-        self.health = health
-
-        # store when spawned for pattern timing
-        self.base_x = x
-
-        # shooting
-        self.bullet_pattern = bullet_pattern
-        self.shoot_cooldown = random.randint(800, 1600)  # ms
-        self.last_shot_time = pygame.time.get_ticks()
-
-        # enemy death feedback
-
-        self.dying = False
-        self.death_start_time = 0
-        self.death_duration = 300  # milliseconds
-
-    # ---------- MOVEMENT ----------
-    def update_position(self):
-        now = pygame.time.get_ticks()
-
-        # Phase 0: Enter from top
-        if self.phase == 0:
-            self.y += self.enterSpeed
-            if self.y >= self.targetY:
-                self.y = self.targetY
-                self.phase = 1
-                self.phaseStart = now
-
-        # Phase 1: Horizontal movement (scripted)
-        elif self.phase == 1:
-            self.x += self.strafeDir * self.strafeSpeed
-
-            if self.x <= 0 or self.x + self.width >= self.screen_width:
-                self.strafeDir *= -1
-
-            if now - self.phaseStart >= self.strafeDuration:
-                self.phase = 2
-                self.phaseStart = now
-
-        # Phase 2: Exit upward (Touhou-style clear)
-        elif self.phase == 2:
-            self.y -= self.exitSpeed
-            if self.y + self.height < 0:
-                self.alive = False
-
-    # ---------- SHOOTING ----------
-
-    def try_shoot(self, bullet_system: "BulletSystem", player_x, player_y, player_size):
-        """Attempt to shoot based on cooldown and chosen bullet pattern."""
-        now = pygame.time.get_ticks()
-        if now - self.last_shot_time < self.shoot_cooldown:
+    def update(self, player_pos=None, enemy_bullets: BulletSystem | None = None):
+        """Default behaviour: move linearly along direction."""
+        if not self.alive:
             return
-
-        self.last_shot_time = now
-
-        # Enemy centre
-        cx = self.x + self.width / 2
-        cy = self.y + self.height / 2
-
-        # Player centre
-        px = player_x + player_size / 2
-        py = player_y + player_size / 2
-
-        pattern = self.bullet_pattern
-
-        if pattern == "aimed":
-            # sniper shot at player
-            bullet_system.shoot_aimed(cx, cy, px, py)
-
-        elif pattern == "radial":
-            # full flower burst
-            bullet_system.shoot_radial(cx, cy, count=16)
-
-        elif pattern == "spread":
-            # fan towards downward direction (pi/2)
-            base_angle = math.pi / 2
-            bullet_system.shoot_spread(
-                cx, cy, base_angle,
-                spread_angle=math.radians(60),
-                count=9
-            )
-
-        elif pattern == "spiral":
-            # rotating spiral that evolves over time
-            bullet_system.shoot_spiral(cx, cy, count=8, step=0.25)
-
-        else:
-            # default: aimed
-            bullet_system.shoot_aimed(cx, cy, px, py)
-
-    # ---------- DRAW ----------
+        self.x += self.direction.x * self.velocity
+        self.y += self.direction.y * self.velocity
+        self.elapsed_frames += 1
 
     def draw(self, screen):
-        if self.dying:
-            elapsed = pygame.time.get_ticks() - self.death_start_time
-            progress = min(elapsed / self.death_duration, 1)
+        # Simple placeholder sprite (filled rect). Replace later with images if desired.
+        pygame.draw.rect(screen, (60, 140, 255), (int(self.x), int(self.y), self.width, self.height))
 
-            max_radius = self.width
-            radius = int(max_radius * progress)
 
-            # Semi-transparent blue expanding circle
-            surface = pygame.Surface((max_radius * 2, max_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(
-                surface,
-                (80, 160, 255, 120),  # RGBA blue
-                (max_radius, max_radius),
-                radius
-            )
+class BlueFairy(Enemy):
+    """Basic enemy: straight movement, 1 HP."""
+    def __init__(self, x, y, direction=(0, 1), velocity=1.0, screen_width=800):
+        super().__init__(x, y, direction=direction, velocity=velocity, hp=1, screen_width=screen_width)
 
-            screen.blit(
-                surface,
-                (
-                    self.x + self.width // 2 - max_radius,
-                    self.y + self.height // 2 - max_radius
-                )
-            )
-        else:
-            pygame.draw.rect(
-                screen,
-                (255, 0, 0),
-                pygame.Rect(int(self.x), int(self.y), self.width, self.height)
-            )
+    def draw(self, screen):
+        pygame.draw.rect(screen, (60, 140, 255), (int(self.x), int(self.y), self.width, self.height))
 
+
+class PinkFairy(Enemy):
+    """
+    PinkFairy: more health and scripted pause window (Touhou-like)
+    - HP: 4
+    - At frame 90: choose left/right drift and slow down.
+    - Frames 91-120: pause (reserved for shooting later)
+    """
+    def __init__(self, x, y, direction=(0, 1), velocity=1.0, screen_width=800):
+        super().__init__(x, y, direction=direction, velocity=velocity, hp=4, screen_width=screen_width)
+        self.base_velocity = self.velocity
+
+    def update(self, player_pos=None, enemy_bullets: BulletSystem | None = None):
+        if not self.alive:
+            return
+
+        self.elapsed_frames += 1
+
+        # Pause window (Touhou: >90 and <=120 return)
+        if 90 < self.elapsed_frames <= 120:
+            return
+
+        if self.elapsed_frames == 90:
+            # Pick drift direction based on which side of screen you're on (Touhou logic)
+            half = (self.screen_width - 1) / 2
+            self.direction = pygame.Vector2(1, 0) if self.x >= half else pygame.Vector2(-1, 0)
+            self.velocity *= 0.5  # slow down
+
+            # Shooting would occur here later (fan toward player). Keeping placeholder for now.
+            # if enemy_bullets and player_pos: ...
+
+        # Movement: Touhou uses velocity * elapsedTime / 75.0 (accelerating feeling)
+        scale = max(self.elapsed_frames / 75.0, 0.25)
+        self.x += self.direction.x * self.velocity * scale
+        self.y += self.direction.y * self.velocity * scale
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, (255, 110, 190), (int(self.x), int(self.y), self.width, self.height))
+
+
+class PinkFairyGood(Enemy):
+    """
+    PinkFairyGood: stronger variant
+    - HP: 8
+    - Shoots at frames 90 and 120 (later)
+    - Pauses between 91 and 150
+    """
+    def __init__(self, x, y, direction=(0, 1), velocity=1.0, screen_width=800):
+        super().__init__(x, y, direction=direction, velocity=velocity, hp=8, screen_width=screen_width)
+        self.base_velocity = self.velocity
+
+    def update(self, player_pos=None, enemy_bullets: BulletSystem | None = None):
+        if not self.alive:
+            return
+
+        self.elapsed_frames += 1
+
+        # Shooting triggers (placeholder)
+        if self.elapsed_frames in (90, 120):
+            half = (self.screen_width - 1) / 2
+            self.direction = pygame.Vector2(1, 0) if self.x >= half else pygame.Vector2(-1, 0)
+            self.velocity *= 0.5
+
+            # Shooting would occur here later.
+
+        # Pause window
+        if 90 < self.elapsed_frames <= 150:
+            return
+
+        scale = max(self.elapsed_frames / 75.0, 0.25)
+        self.x += self.direction.x * self.velocity * scale
+        self.y += self.direction.y * self.velocity * scale
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, (255, 80, 140), (int(self.x), int(self.y), self.width, self.height))
+
+
+# ----------------------------
+# Enemy manager (EnemySystem)
+# ----------------------------
 
 class EnemySystem:
+    """
+    Touhou-inspired EnemySystem / EnemyManager:
+    - Keeps active enemies list
+    - Spawns different enemy types
+    - Updates & draws enemies
+    """
     def __init__(self, screenWidth, screenHeight):
-        self.enemies = []
-        self.enemySpeed = 2.0  # base speed for enemies
-        self.screenWidth = screenWidth
-        self.screenHeight = screenHeight
-        self.spawnCooldown = 1000  # ms between spawns
-        self.lastSpawnTime = pygame.time.get_ticks()
+        self.enemies: list[Enemy] = []
+        self.screenWidth = int(screenWidth)
+        self.screenHeight = int(screenHeight)
 
+        # Difficulty knobs (controlled by WaveSystem)
+        self.baseVelocity = 1.0
 
-        # Patterns to randomly choose from
+    def spawn(self, enemy_type: str, x: float, y: float, direction=(0, 1), velocity: float | None = None):
+        """Spawn a specific enemy type at position."""
+        v = self.baseVelocity if velocity is None else float(velocity)
+        if enemy_type == "BlueFairy":
+            e = BlueFairy(x, y, direction=direction, velocity=v, screen_width=self.screenWidth)
+        elif enemy_type == "PinkFairy":
+            e = PinkFairy(x, y, direction=direction, velocity=v, screen_width=self.screenWidth)
+        elif enemy_type == "PinkFairyGood":
+            e = PinkFairyGood(x, y, direction=direction, velocity=v, screen_width=self.screenWidth)
+        else:
+            e = Enemy(x, y, direction=direction, velocity=v, hp=1, screen_width=self.screenWidth)
 
-        self.bullet_patterns = ["aimed", "radial", "spread", "spiral"]
+        self.enemies.append(e)
 
-    def spawnEnemy(
-            self,
-            enemy_type="BlueFairy",
-            targetY=120
-    ):
+    def updateEnemies(self, bullet_system: BulletSystem | None = None, player_x=None, player_y=None, player_size=32):
+        player_pos = None
+        if player_x is not None and player_y is not None:
+            player_pos = pygame.Vector2(player_x + player_size/2, player_y + player_size/2)
 
-        x = random.randint(0, self.screenWidth - 32)
-        y = -32
+        for e in self.enemies:
+            e.update(player_pos=player_pos, enemy_bullets=bullet_system)
 
-
-
-
-        enemy = Enemy(
-            x,
-            y,
-            width=32,
-            height=32,
-            speed=2,
-            health=1,
-            screen_width=self.screenWidth,
-        )
-        self.enemies.append(enemy)
-        self.lastSpawnTime =  pygame.time.get_ticks()
-
-        # ENEMY PROFILELOGIC
-
-        profile = ENEMY_PROFILES[enemy_type]
-
-
-        enemy.health = profile["hp"]
-        enemy.strafeSpeed = profile["strafeSpeed"]
-        enemy.strafeDuration = profile["strafeDuration"]
-        enemy.targetY = targetY
-
-
-
-    def updateEnemies(self, bullet_system: "BulletSystem" = None,
-                      player_x=None, player_y=None, player_size=32):
-        """Update positions and optionally have them fire bullets."""
-        for enemy in self.enemies:
-            enemy.update_position()
-            if bullet_system is not None and player_x is not None and player_y is not None:
-                enemy.try_shoot(bullet_system, player_x, player_y, player_size)
-
-        # Remove enemies that move off the bottom of the screen
-        self.enemies = [
-            e for e in self.enemies
-            if e.y < self.screenHeight + e.height
-        ]
+        # Remove dead or out-of-bounds enemies (Touhou: keep only in playfield)
+        new_list = []
+        for e in self.enemies:
+            if not e.alive:
+                continue
+            # allow enemies to travel off bottom slightly before removing
+            if e.y > self.screenHeight + e.height:
+                continue
+            if e.x < -e.width or e.x > self.screenWidth + e.width:
+                continue
+            new_list.append(e)
+        self.enemies = new_list
 
     def drawEnemies(self, screen):
-        for enemy in self.enemies:
-            enemy.draw(screen)
+        for e in self.enemies:
+            e.draw(screen)
