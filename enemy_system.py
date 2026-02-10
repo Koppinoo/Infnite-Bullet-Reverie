@@ -1,9 +1,10 @@
+
 import pygame
 import random
 import math
 from WaveSystem import WaveSystem
 
-    
+
 from bullet_system import BulletSystem
 
 ENEMY_PROFILES = {
@@ -244,8 +245,12 @@ class EnemySystem:
 
     def spawnEnemy(
             self,
-            enemy_type="BlueFairy",
-            targetY=120
+            bullet_pattern=None,
+            targetY=120,
+            strafeSpeed=2.0,
+            strafeDuration=1500,
+
+
     ):
 
         x = random.randint(0, self.screenWidth - 32)
