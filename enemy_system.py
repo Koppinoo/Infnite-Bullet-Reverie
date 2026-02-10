@@ -2,10 +2,9 @@
 import pygame
 import random
 import math
-from WaveSystem import WaveSystem
 
 
-from bullet_system import BulletSystem
+
 
 ENEMY_PROFILES = {
     "BlueFairy": {
@@ -44,6 +43,7 @@ class Enemy:
         self.y = float(y)
         self.width = width
         self.height = height
+        self.alive = True  # Used to safely remove enemies when they exit the playfield
 
         # movement
         self.speed = speed
@@ -76,6 +76,10 @@ class Enemy:
         self.bullet_pattern = bullet_pattern
         self.shoot_cooldown = random.randint(800, 1600)  # ms
         self.last_shot_time = pygame.time.get_ticks()
+        self.elapsed_time = 0
+        self.has_shot = False
+
+
 
         # enemy death feedback
 
@@ -205,58 +209,73 @@ class EnemySystem:
 
         self.bullet_patterns = ["aimed", "radial", "spread", "spiral"]
 
-    def spawnEnemy(
-            self,
-            bullet_pattern=None,
-            targetY=120,
-            strafeSpeed=2.0,
-            strafeDuration=1500,
+    def spawnEnemy(self, enemy_type="BlueFairy", targetY=120, bullet_pattern=None):
+        """
+        Spawns an enemy based on a named profile (BlueFairy / PinkFairy / PinkFairyGood).
+        This matches WaveSystem calling spawnEnemy(enemy_type=..., targetY=...).
+        """
+        now = pygame.time.get_ticks()
 
+        # Choose profile safely (fallback to BlueFairy if typo)
+        profile = ENEMY_PROFILES.get(enemy_type, ENEMY_PROFILES["BlueFairy"])
 
-    ):
-
+        # Random X spawn, spawn just above screen
         x = random.randint(0, self.screenWidth - 32)
         y = -32
 
-
-
+        # Decide bullet pattern per enemy type (simple + deterministic)
+        if bullet_pattern is None:
+            if enemy_type == "BlueFairy":
+                bullet_pattern = "aimed"  # can be slow / rare shots
+            elif enemy_type == "PinkFairy":
+                bullet_pattern = "aimed"  # basic aimed shots first
+            else:
+                bullet_pattern = "spread"  # slightly harder later
 
         enemy = Enemy(
             x,
             y,
             width=32,
             height=32,
-            speed=2,
-            health=1,
+            speed=self.enemySpeed,
+            health=profile["hp"],
+            bullet_pattern=bullet_pattern,
             screen_width=self.screenWidth,
         )
-        self.enemies.append(enemy)
-        self.lastSpawnTime =  pygame.time.get_ticks()
 
-        # ENEMY PROFILELOGIC
-
-        profile = ENEMY_PROFILES[enemy_type]
-
-
-        enemy.health = profile["hp"]
+        # Apply profile movement settings
         enemy.strafeSpeed = profile["strafeSpeed"]
         enemy.strafeDuration = profile["strafeDuration"]
         enemy.targetY = targetY
 
+        # Make shooting actually noticeable while testing (ms)
+        if enemy_type == "BlueFairy":
+            enemy.shoot_cooldown = 2000
+        elif enemy_type == "PinkFairy":
+            enemy.shoot_cooldown = 900
+        else:
+            enemy.shoot_cooldown = 700
+
+        enemy.last_shot_time = now
+        self.enemies.append(enemy)
+        self.lastSpawnTime = now
 
 
     def updateEnemies(self, bullet_system: "BulletSystem" = None,
                       player_x=None, player_y=None, player_size=32):
         """Update positions and optionally have them fire bullets."""
         for enemy in self.enemies:
+            enemy.elapsed_time += 1
             enemy.update_position()
             if bullet_system is not None and player_x is not None and player_y is not None:
                 enemy.try_shoot(bullet_system, player_x, player_y, player_size)
 
+
+
         # Remove enemies that move off the bottom of the screen
         self.enemies = [
             e for e in self.enemies
-            if e.y < self.screenHeight + e.height
+            if getattr(e, "alive", True) and e.y < self.screenHeight + e.height
         ]
 
     def drawEnemies(self, screen):
