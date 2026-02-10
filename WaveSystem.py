@@ -27,7 +27,7 @@ class WaveSystem:
         #Phase Timing
         self.phase = 0
         self.phaseStartTime = pygame.time.get_ticks()
-        self.PHASE_DURATION = 10000 #10 seconds
+        self.PHASE_DURATION = 30000  # 30 seconds
 
     def update(self, enemySystem, gamePaused):
             if gamePaused:
