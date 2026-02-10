@@ -90,8 +90,6 @@ while running:
 
         # If playing, allow menu to receive some inputs (toggle)
         if menu.state == "game":
-
-
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     gamePaused = not gamePaused
@@ -310,12 +308,14 @@ while running:
             (
                 screen.get_width() // 2 - pause_text.get_width() // 2,
                 screen.get_height() // 2 - pause_text.get_height() // 2
+
             )
         )
 
+
+
     pygame.display.flip()
     clock.tick(60)
-
 
 # Clean exit
 pygame.quit()

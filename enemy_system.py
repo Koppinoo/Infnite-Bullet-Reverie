@@ -35,6 +35,7 @@ class Enemy:
         speed=2,
         health=1,
         movement_pattern="straight",
+        movement_type="BlueFairy",
         bullet_pattern="aimed",
         screen_width=800,
     ):
@@ -48,6 +49,8 @@ class Enemy:
         self.speed = speed
         self.movement_pattern = movement_pattern
         self.screen_width = screen_width
+        self.movement_type = movement_type
+        self.elapsedTime = 0
 
         # movement scripting
         self.spawnTime = pygame.time.get_ticks()
@@ -75,6 +78,7 @@ class Enemy:
         self.bullet_pattern = bullet_pattern
         self.shoot_cooldown = random.randint(800, 1600)  # ms
         self.last_shot_time = pygame.time.get_ticks()
+        
 
         # enemy death feedback
 
@@ -85,6 +89,40 @@ class Enemy:
     # ---------- MOVEMENT ----------
     def update_position(self):
         now = pygame.time.get_ticks()
+
+    # ---BlueFairyLogic --- #
+
+        def update_position(self):
+            # --- BLUE FAIRY LOGIC (Touhou-style) ---
+            if self.movement_type == "blue_fairy":
+                self.y += self.speed
+
+                # Remove enemy once it leaves the bottom of the screen
+                if self.y > self.screenHeight:
+                    self.alive = False
+                return
+
+                # ---------------- PINK FAIRY ----------------
+            if self.movement_type == "pink_fairy":
+                    # Move down for first 90 frames
+                    if self.elapsedTime < 90:
+                        self.y += self.speed
+
+                    # Pause between frames 90–120
+                    elif 90 <= self.elapsedTime <= 120:
+                        pass  # intentional stop
+
+
+                    # Resume downward movement
+                    else:
+                        self.y += self.speed * 0.8
+
+                    if self.y > self.screenHeight:
+                        self.alive = False
+                    return
+
+
+
 
         # Phase 0: Enter from top
         if self.phase == 0:
@@ -216,15 +254,33 @@ class EnemySystem:
 
 
 
-        enemy = Enemy(
-            x,
-            y,
-            width=32,
-            height=32,
-            speed=2,
-            health=1,
-            screen_width=self.screenWidth,
-        )
+
+        if enemy_type == "PinkFairy":
+            enemy = Enemy(
+                x,
+                y,
+                width=32,
+                height=32,
+                speed=1.5,
+                health=4,
+                movement_type="pink_fairy",
+                screen_width=self.screenWidth,
+            )
+
+        else:
+            enemy = Enemy(
+                x,
+                y,
+                width=32,
+                height=32,
+                speed=2,
+                health=1,
+                movement_type="blue_fairy",
+                screen_width=self.screenWidth,
+
+
+                    )
+
         self.enemies.append(enemy)
         self.lastSpawnTime =  pygame.time.get_ticks()
 
@@ -257,3 +313,27 @@ class EnemySystem:
     def drawEnemies(self, screen):
         for enemy in self.enemies:
             enemy.draw(screen)
+
+
+
+def update_position(self):
+    if self.movement_type == "blue_fairy":
+        self.y += self.speed  # Constant downward movement
+
+        # Remove enemy once it leaves the screen
+        if self.y > self.screenHeight:
+            self.alive = False
+        return
+
+def update_position(self):
+    if self.movement_type == "pink_fairy":
+        self.elapsedTime += 1  # Track lifespan for future scripted behaviour
+
+        # Continuous downward movement
+        self.y += self.speed
+
+        # Remove enemy once it leaves the screen
+        if self.y > self.screenHeight:
+            self.alive = False
+        return
+
