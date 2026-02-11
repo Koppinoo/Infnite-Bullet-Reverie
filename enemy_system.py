@@ -273,3 +273,4 @@ class EnemySystem:
     def drawEnemies(self, screen):
         for enemy in self.enemies:
             enemy.draw(screen)
+

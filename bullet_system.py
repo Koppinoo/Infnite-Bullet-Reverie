@@ -48,6 +48,7 @@ class BulletSystem:
         self.lastShotTime = 0
         self.screenWidth = screenWidth
         self.screenHeight = screenHeight
+        self.chase_bullets = []
 
         # used for spiral patterns (each BulletSystem instance has its own)
         self.spiral_angle = 0.0
@@ -176,3 +177,40 @@ class BulletSystem:
     def drawBullets(self, screen)   :
         for bullet in self.bullets:
             bullet.draw(screen)
+
+    def spawn_chase(self, x, y, speed=6):
+        b = ChaseBullet(x, y, speed=speed)
+        self.chase_bullets.append(b)
+        return b
+
+    def updateChaseBullets(self, target_x, target_y):
+        for b in self.chase_bullets:
+            b.home_towards(target_x, target_y)
+            b.update()
+
+        margin = 20
+        self.chase_bullets = [
+            b for b in self.chase_bullets
+            if -margin <= b.x <= self.screenWidth + margin
+               and -margin <= b.y <= self.screenHeight + margin
+        ]
+
+    def drawChaseBullets(self, screen):
+        for b in self.chase_bullets:
+            b.draw(screen)
+
+
+class ChaseBullet(Bullet):
+    def __init__(self, x, y, speed=6):
+        super().__init__(x, y, 0, -speed, width=6, height=6, color=(255, 255, 180))
+        self.speed = speed
+
+    def home_towards(self, tx, ty):
+        dx = tx - self.x
+        dy = ty - self.y
+        dist = math.hypot(dx, dy)
+        if dist == 0:
+            return
+        self.vx = (dx / dist) * self.speed
+        self.vy = (dy / dist) * self.speed
+

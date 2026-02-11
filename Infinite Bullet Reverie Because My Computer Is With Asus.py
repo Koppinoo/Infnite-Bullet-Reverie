@@ -48,7 +48,14 @@ def reset_player_state():
         "focusSpeed": 2,
         "lives": 3,
         "invulnerable": False,
-        "invulnTimer": 0
+        "invulnTimer": 0,
+        "powerValue": 1,
+        "powerLevel": 1,
+        "fireCooldown": 0,
+        "fireRate": 6,
+        "chaseCooldown": 0,
+        "chaseRate": 30,  # will change by power level
+
     }
 
 player = reset_player_state()
@@ -56,6 +63,20 @@ player = reset_player_state()
 # --- Fonts (create once) ---
 title_font = pygame.font.SysFont(None, 64)
 ui_font = pygame.font.SysFont(None, 28)
+
+def update_power_level(player):
+    pv = player["powerValue"]
+
+    if pv >= 60:
+        player["powerLevel"] = 5
+    elif pv >= 35:
+        player["powerLevel"] = 4
+    elif pv >= 20:
+        player["powerLevel"] = 3
+    elif pv >= 10:
+        player["powerLevel"] = 2
+    else:
+        player["powerLevel"] = 1
 
 # --- Utility: restart entire game state ---
 def restart_game():
@@ -130,6 +151,14 @@ while running:
         is_focus = keys[controls["slow"]]
         is_shooting = keys[controls["shoot"]]
 
+        # --- Fire cooldown tick-down ---
+        if player["fireCooldown"] > 0:
+            player["fireCooldown"] -= 1
+
+        # --- Chase cooldown tick-down ---
+        if player["chaseCooldown"] > 0:
+            player["chaseCooldown"] -= 1
+
         # Movement logic with diagonal normalisation
         speed = player["focusSpeed"] if is_focus else player["normalSpeed"]
         moveX = 0
@@ -154,9 +183,38 @@ while running:
         player["y"] = max(0, min(HEIGHT - player["size"], player["y"]))
 
         # Shooting (player)
-        if is_shooting:
-            playerBullets.shoot(player["x"], player["y"], player["size"])
-        playerBullets.updateBullets()
+        if is_shooting and player["fireCooldown"] == 0:
+
+            px = player["x"] + player["size"] // 2
+            py = player["y"]
+            size = player["size"]
+
+            if player["powerLevel"] == 1:
+                # Single forward shot
+                playerBullets.shoot(player["x"], player["y"], player["size"])
+
+            elif player["powerLevel"] == 2:
+                # Single + slight side shot
+                playerBullets.shoot(player["x"], player["y"], player["size"])
+                playerBullets.spawn_custom(px - 8, py, 0, -8)
+
+            elif player["powerLevel"] == 3:
+                # Dual parallel
+                playerBullets.spawn_custom(px - 6, py, 0, -8)
+                playerBullets.spawn_custom(px + 6, py, 0, -8)
+
+            elif player["powerLevel"] == 4:
+                # 3-way spread
+                playerBullets.spawn_custom(px, py, 0, -8)
+                playerBullets.spawn_custom(px, py, -2, -8)
+                playerBullets.spawn_custom(px, py, 2, -8)
+
+            elif player["powerLevel"] >= 5:
+                # 5-way spread
+                for angle in [-4, -2, 0, 2, 4]:
+                    playerBullets.spawn_custom(px, py, angle, -8)
+
+            player["fireCooldown"] = player["fireRate"]
 
         # Enemy spawn/update/draw calls
         enemySystem.updateEnemies(
@@ -167,6 +225,7 @@ while running:
 
         )
         bossSystem.update(enemyBullets,player)
+        playerBullets.updateBullets()
 
         enemyBullets.updateBullets()
 
@@ -221,10 +280,33 @@ while running:
                     # if enemy died, remove it
                     if enemy.health <= 0:
                         try:
+                            player["powerValue"] += 2  # Gain 2 power per kill
+                            update_power_level(player)
                             enemySystem.enemies.remove(enemy)
                         except ValueError:
                             pass
                     break  # bullet can only hit one enemy
+
+            # 2B) Player bullets hitting Boss (Rumia)
+            if bossSystem.spawned and not bossSystem.dead:
+                for pb in playerBullets.bullets[:]:
+                    if check_collision(
+                            pb.x, pb.y, pb.width, pb.height,
+                            bossSystem.x - bossSystem.width // 2,
+                            bossSystem.y,
+                            bossSystem.width,
+                            bossSystem.height
+                    ):
+                        bossSystem.hp -= 1  # Reduce boss HP
+
+                        try:
+                            playerBullets.bullets.remove(pb)
+                        except ValueError:
+                            pass
+
+                        # Check if boss dies
+                        if bossSystem.hp <= 0:
+                            bossSystem.dead = True
 
         # 3) Enemy colliding with player (instant death for testing)
         for enemy in enemySystem.enemies[:]:
@@ -246,6 +328,25 @@ while running:
                 player["lives"] = 0
                 print("HIT BY ENEMY BODY ")
                 break
+        # 3B) Player colliding with Boss body
+        if bossSystem.spawned and not bossSystem.dead:
+
+            hitbox_x = player["x"] + player["size"] // 2
+            hitbox_y = player["y"] + player["size"] // 2
+
+            if circle_rect_collision(
+                    hitbox_x,
+                    hitbox_y,
+                    HITBOX_RADIUS,
+                    bossSystem.x - bossSystem.width // 2,
+                    bossSystem.y,
+                    bossSystem.width,
+                    bossSystem.height
+            ):
+                if not player["invulnerable"]:
+                    player["lives"] -= 1
+                    player["invulnerable"] = True
+                    player["invulnTimer"] = pygame.time.get_ticks()
 
         # Check game over
         if player["lives"] <= 0:
@@ -291,6 +392,12 @@ while running:
 
     # HUD
     score_text = ui_font.render(f"Lives: {player['lives']}", True, (255, 255, 255))
+    power_text = ui_font.render(
+        f"Power: {player['powerValue']} (Lv {player['powerLevel']})",
+        True,
+        (255, 255, 0)
+    )
+    screen.blit(power_text, (10, 70))
     screen.blit(score_text, (10, 10))
     ztext = ui_font.render(f"Shoot: {pygame.key.name(controls['shoot'])}", True, (200, 200, 200))
     screen.blit(ztext, (10, 40))
@@ -329,6 +436,7 @@ while running:
 # Clean exit
 pygame.quit()
 sys.exit()
+
 
 
 
