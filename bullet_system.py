@@ -170,7 +170,9 @@ class BulletSystem:
     def spawn_custom(self, x, y, vx, vy):
         bullet = EnemyBullet(x, y, vx, vy)
         self.bullets.append(bullet)
+        return bullet
 
-    def drawBullets(self, screen):
+
+    def drawBullets(self, screen)   :
         for bullet in self.bullets:
             bullet.draw(screen)

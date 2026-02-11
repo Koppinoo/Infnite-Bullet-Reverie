@@ -118,7 +118,7 @@ while running:
     keys = pygame.key.get_pressed()
 
     if not gamePaused:
-        bossSystem.update(enemyBullets)
+        bossSystem.update(enemyBullets,player)
 
         waveSystem.update(enemySystem, gamePaused,bossSystem)
 
@@ -166,7 +166,7 @@ while running:
             player["size"],
 
         )
-        bossSystem.update(enemyBullets)
+        bossSystem.update(enemyBullets,player)
 
         enemyBullets.updateBullets()
 
@@ -329,3 +329,6 @@ while running:
 # Clean exit
 pygame.quit()
 sys.exit()
+
+
+
