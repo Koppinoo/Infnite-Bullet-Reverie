@@ -9,6 +9,9 @@ from enemy_system import EnemySystem
 from menu_system import MenuSystem
 from collision_system import circle_rect_collision, HITBOX_RADIUS, check_collision
 from WaveSystem import WaveSystem
+from boss_system import Rumia
+
+bossSystem = Rumia(screen_width=800)
 
 waveSystem = WaveSystem()
 
@@ -115,8 +118,9 @@ while running:
     keys = pygame.key.get_pressed()
 
     if not gamePaused:
+        bossSystem.update()
 
-        waveSystem.update(enemySystem, gamePaused)
+        waveSystem.update(enemySystem, gamePaused,bossSystem)
 
         # Movement input (continuous)
         move_left = keys[controls["left"]]
@@ -253,6 +257,10 @@ while running:
         playerBullets.drawBullets(screen)
         enemySystem.drawEnemies(screen)
         enemyBullets.drawBullets(screen)
+
+        #bossDrawing
+
+        bossSystem.draw(screen)
 
         # Player draw - flash while invulnerable
         player_color = (0, 255, 255) if not player["invulnerable"] or (pygame.time.get_ticks() % 300 < 150) else (100, 100, 100)

@@ -76,10 +76,6 @@ class Enemy:
         self.bullet_pattern = bullet_pattern
         self.shoot_cooldown = random.randint(800, 1600)  # ms
         self.last_shot_time = pygame.time.get_ticks()
-        self.elapsed_time = 0
-        self.has_shot = False
-
-
 
         # enemy death feedback
 
@@ -260,17 +256,13 @@ class EnemySystem:
         self.enemies.append(enemy)
         self.lastSpawnTime = now
 
-
     def updateEnemies(self, bullet_system: "BulletSystem" = None,
                       player_x=None, player_y=None, player_size=32):
         """Update positions and optionally have them fire bullets."""
         for enemy in self.enemies:
-            enemy.elapsed_time += 1
             enemy.update_position()
             if bullet_system is not None and player_x is not None and player_y is not None:
                 enemy.try_shoot(bullet_system, player_x, player_y, player_size)
-
-
 
         # Remove enemies that move off the bottom of the screen
         self.enemies = [

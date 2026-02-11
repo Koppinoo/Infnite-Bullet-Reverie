@@ -27,13 +27,20 @@ class WaveSystem:
         #Phase Timing
         self.phase = 0
         self.phaseStartTime = pygame.time.get_ticks()
-        self.PHASE_DURATION = 30000  # 30 seconds
+        self.PHASE_DURATION = 10000 #10 seconds
 
-    def update(self, enemySystem, gamePaused):
+    def update(self, enemySystem, gamePaused,bossSystem):
             if gamePaused:
                 return
 
+             # If boss is active or dead logic is running, stop waves
+            if bossSystem.spawned and not bossSystem.dead:
+                return
+
             currentTime = pygame.time.get_ticks()
+            if self.phase >= 3 and not bossSystem.spawned:
+                bossSystem.spawn()
+                return
 
             # ---------------- PHASE TIMER ----------------
             if currentTime - self.phaseStartTime >= self.PHASE_DURATION:
