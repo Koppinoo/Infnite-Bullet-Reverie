@@ -22,6 +22,23 @@ class Bullet:
             pygame.Rect(int(self.x), int(self.y), self.width, self.height)
         )
 
+class EnemyBullet:
+    def __init__(self, x, y, vx, vy):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.width = 6
+        self.height = 6
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, (255, 0, 0),
+                         (self.x, self.y, self.width, self.height))
+
 
 class BulletSystem:
     def __init__(self, bulletSpeed=10, shootCooldown=150, screenWidth=800, screenHeight=600):
@@ -147,6 +164,12 @@ class BulletSystem:
             if -margin <= b.x <= self.screenWidth + margin
             and -margin <= b.y <= self.screenHeight + margin
         ]
+
+        #For custom bullets for Rumia
+
+    def spawn_custom(self, x, y, vx, vy):
+        bullet = EnemyBullet(x, y, vx, vy)
+        self.bullets.append(bullet)
 
     def drawBullets(self, screen):
         for bullet in self.bullets:

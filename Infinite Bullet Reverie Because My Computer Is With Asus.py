@@ -118,7 +118,7 @@ while running:
     keys = pygame.key.get_pressed()
 
     if not gamePaused:
-        bossSystem.update()
+        bossSystem.update(enemyBullets)
 
         waveSystem.update(enemySystem, gamePaused,bossSystem)
 
@@ -164,8 +164,9 @@ while running:
             player["x"],
             player["y"],
             player["size"],
-        )
 
+        )
+        bossSystem.update(enemyBullets)
 
         enemyBullets.updateBullets()
 
@@ -259,8 +260,8 @@ while running:
         enemyBullets.drawBullets(screen)
 
         #bossDrawing
-
-        bossSystem.draw(screen)
+        if bossSystem.spawned and not bossSystem.dead:
+            bossSystem.draw(screen)
 
         # Player draw - flash while invulnerable
         player_color = (0, 255, 255) if not player["invulnerable"] or (pygame.time.get_ticks() % 300 < 150) else (100, 100, 100)
